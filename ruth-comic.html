@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Story of Ruth – a comic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#ffe27a; --dot:#ffc933; --paper:#fffdf3; --frame:#2b1b12; --text:#2b1b12;
+  --btn:#ff5d73; --btn-text:#fff; --btn-off:#e3d9b8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#2a2147; --dot:#3a2e63; --paper:#3b3160; --frame:#f7ecd0; --text:#f7ecd0;
+    --btn:#ff7a8d; --btn-text:#2b1b12; --btn-off:#4b4175;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#2a2147; --dot:#3a2e63; --paper:#3b3160; --frame:#f7ecd0; --text:#f7ecd0;
+  --btn:#ff7a8d; --btn-text:#2b1b12; --btn-off:#4b4175;
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0;min-height:100%;color:var(--text);
+  background-color:var(--bg);
+  background-image:radial-gradient(var(--dot) 22%,transparent 24%);
+  background-size:18px 18px;
+  font-family:'Comic Neue','Comic Sans MS','Chalkboard SE',sans-serif;font-weight:700;
+}
+.wrap{max-width:900px;margin:0 auto;padding:14px 12px 28px}
+header{text-align:center;margin-bottom:10px}
+h1{
+  font-family:'Bangers',Impact,'Arial Black',sans-serif;font-weight:400;
+  font-size:clamp(34px,8vw,60px);letter-spacing:2px;margin:0;line-height:1;
+  color:#fff;-webkit-text-stroke:2px var(--frame);paint-order:stroke fill;
+  text-shadow:4px 4px 0 var(--frame);transform:rotate(-1.5deg);
+}
+.sub{margin:10px 0 0;font-size:16px}
+.pagehead{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:12px 2px 8px;font-size:17px;
+}
+.pagehead .t{font-family:'Bangers',Impact,sans-serif;font-weight:400;font-size:24px;letter-spacing:1px}
+.page{
+  background:var(--paper);border:4px solid var(--frame);border-radius:6px;
+  padding:10px;box-shadow:7px 7px 0 var(--frame);
+}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{
+  border:3.5px solid var(--frame);background:#fff;overflow:hidden;
+  aspect-ratio:4/3;line-height:0;
+}
+.panel svg{width:100%;height:100%;display:block}
+.slide-next{animation:inR .35s ease-out}
+.slide-prev{animation:inL .35s ease-out}
+@keyframes inR{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.slide-next,.slide-prev{animation:none}}
+nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:20px}
+button{
+  font:inherit;font-size:19px;cursor:pointer;color:var(--btn-text);background:var(--btn);
+  border:3.5px solid var(--frame);border-radius:999px;padding:10px 22px;
+  box-shadow:4px 4px 0 var(--frame);
+}
+button:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--frame)}
+button:disabled{background:var(--btn-off);color:var(--text);opacity:.55;cursor:default;box-shadow:2px 2px 0 var(--frame)}
+button:focus-visible{outline:4px solid #3a86ff;outline-offset:3px}
+.dots{display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+.dot{
+  width:20px;height:20px;padding:0;border-radius:50%;box-shadow:none;
+  background:var(--paper);border:3px solid var(--frame);
+}
+.dot[aria-current="true"]{background:var(--btn)}
+.foot{text-align:center;margin-top:22px;font-size:14px;opacity:.85}
+@media (max-width:640px){
+  .grid{grid-template-columns:1fr}
+  button{padding:9px 16px;font-size:17px}
+  .dot{width:16px;height:16px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>The Story of Ruth</h1>
+    <p class="sub">A Bible story in 6 pages. Tap the buttons or swipe to turn the page!</p>
+  </header>
+  <div class="pagehead"><span class="t" id="ptitle"></span><span id="pnum"></span></div>
+  <main class="page" id="page"><div class="grid" id="grid"></div></main>
+  <nav>
+    <button id="prev" type="button">Back</button>
+    <div class="dots" id="dots" role="group" aria-label="Pages"></div>
+    <button id="next" type="button">Next page</button>
+  </nav>
+  <p class="foot">Based on the Book of Ruth in the Bible.</p>
+</div>
+
+<script>
+const INK="#2b1b12";
+const FONT="'Comic Neue','Comic Sans MS','Chalkboard SE',sans-serif";
+let gid=0;
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+/* ---------- text helpers ---------- */
+function wrap(t,n){const w=t.split(" "),L=[];let c="";for(const x of w){if((c+" "+x).trim().length>n&&c){L.push(c);c=x}else c=(c+" "+x).trim()}if(c)L.push(c);return L}
+function bub(x,y,w,text,tx,ty,o={}){
+  const fs=o.fs||14,n=Math.floor((w-18)/(fs*0.6)),L=wrap(text,n),lh=fs+4,h=L.length*lh+12;
+  const bx=Math.max(x+20,Math.min(x+w-20,tx)),fill=o.fill||"#fff";
+  let s=`<polygon points="${bx-9},${y+h-2} ${bx+9},${y+h-2} ${tx},${ty}" fill="${fill}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${fill}" stroke="${INK}" stroke-width="2.5"/>`;
+  s+=`<line x1="${bx-8}" y1="${y+h}" x2="${bx+8}" y2="${y+h}" stroke="${fill}" stroke-width="4"/>`;
+  s+=`<text font-family="${FONT}" font-weight="700" font-size="${fs}" fill="${INK}" text-anchor="middle">`+
+     L.map((l,i)=>`<tspan x="${x+w/2}" y="${y+6+fs+i*lh}">${esc(l)}</tspan>`).join("")+`</text>`;
+  return s;
+}
+function cap(t,o={}){
+  const w=o.w||384,x=o.x??8,fs=o.fs||13,L=wrap(t,Math.floor((w-16)/(fs*0.6))),h=L.length*(fs+4)+10;
+  const y=o.bottom?292-h:8;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#ffe066" stroke="${INK}" stroke-width="2.5"/>`+
+    `<text font-family="${FONT}" font-weight="700" font-size="${fs}" fill="${INK}">`+
+    L.map((l,i)=>`<tspan x="${x+8}" y="${y+5+fs+i*(fs+4)}">${esc(l)}</tspan>`).join("")+`</text>`;
+}
+function sfx(x,y,t,size,fill,rot=0){
+  return `<text x="${x}" y="${y}" transform="rotate(${rot} ${x} ${y})" text-anchor="middle" font-family="Bangers,Impact,'Arial Black',sans-serif" font-size="${size}" fill="${fill}" stroke="${INK}" stroke-width="${size/7}" stroke-linejoin="round" paint-order="stroke" letter-spacing="1">${esc(t)}</text>`;
+}
+
+/* ---------- scenery ---------- */
+function sky(c1,c2){const id="g"+(gid++);return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="400" height="300" fill="url(#${id})"/>`}
+function sun(x,y,r){let s="";for(let i=0;i<12;i++){const a=i*Math.PI/6;s+=`<line x1="${x+Math.cos(a)*(r+6)}" y1="${y+Math.sin(a)*(r+6)}" x2="${x+Math.cos(a)*(r+18)}" y2="${y+Math.sin(a)*(r+18)}" stroke="#ffb703" stroke-width="5" stroke-linecap="round"/>`}return s+`<circle cx="${x}" cy="${y}" r="${r}" fill="#ffd23f" stroke="${INK}" stroke-width="3"/>`}
+function cloud(x,y,s=1,c="#fff"){return `<g transform="translate(${x},${y}) scale(${s})" fill="${c}" stroke="${INK}" stroke-width="2.5"><path d="M-30 12 Q-42 12 -40 0 Q-38 -10 -26 -8 Q-24 -24 -6 -22 Q8 -34 22 -20 Q40 -22 40 -4 Q46 12 30 12 Z"/></g>`}
+function hills(c1,c2){return `<path d="M0 200 Q70 140 150 190 Q230 130 300 185 Q360 150 400 180 L400 300 L0 300Z" fill="${c1}" stroke="${INK}" stroke-width="3"/><path d="M0 225 Q100 185 200 220 Q300 190 400 215 L400 300 L0 300Z" fill="${c2}" stroke="${INK}" stroke-width="3"/>`}
+function ground(y,c){return `<rect x="-5" y="${y}" width="410" height="${300-y+5}" fill="${c}" stroke="${INK}" stroke-width="3"/>`}
+function house(x,y,s=1,c="#f4a261"){return `<g transform="translate(${x},${y}) scale(${s})" stroke="${INK}" stroke-width="3"><rect x="-30" y="-50" width="60" height="50" fill="${c}"/><rect x="-35" y="-60" width="70" height="11" fill="#e76f51"/><rect x="-8" y="-30" width="16" height="30" rx="8" fill="#7f5539"/><rect x="14" y="-42" width="11" height="11" fill="#bde0fe"/></g>`}
+function barley(x,y,h=55){let s=`<g stroke="${INK}" stroke-width="1.2"><line x1="${x}" y1="${y}" x2="${x}" y2="${y-h}" stroke="#a68a2f" stroke-width="2.5"/>`;for(let i=0;i<5;i++){const yy=y-h+i*6;s+=`<ellipse cx="${x-4}" cy="${yy}" rx="2.6" ry="5.5" fill="#f2c94c" transform="rotate(-25 ${x-4} ${yy})"/><ellipse cx="${x+4}" cy="${yy+3}" rx="2.6" ry="5.5" fill="#f2c94c" transform="rotate(25 ${x+4} ${yy+3})"/>`}return s+"</g>"}
+function fieldRow(y,h,off=0){let s="";for(let x=-10+off;x<420;x+=16)s+=barley(x,y,h+Math.abs((x*7)%9));return s}
+function heart(x,y,s=1,c="#ff5d8f"){return `<path transform="translate(${x},${y}) scale(${s})" d="M0 8 C-18 -6 -10 -20 0 -10 C10 -20 18 -6 0 8Z" fill="${c}" stroke="${INK}" stroke-width="2"/>`}
+function stars(){let s="";for(let i=0;i<26;i++){s+=`<circle cx="${(i*83)%400}" cy="${20+(i*47)%150}" r="${1+(i%3)*0.8}" fill="#fff8c4"/>`}return s}
+function moon(x,y){return `<path transform="translate(${x},${y})" d="M0 -26 A26 26 0 1 0 0 26 A20 20 0 1 1 0 -26Z" fill="#fff3b0" stroke="${INK}" stroke-width="2.5"/>`}
+function rain(){let s="";for(let i=0;i<46;i++){const x=(i*37)%400,y=(i*53)%250+40;s+=`<line x1="${x}" y1="${y}" x2="${x-5}" y2="${y+14}" stroke="#d6ebff" stroke-width="2" stroke-linecap="round"/>`}return s}
+function bunting(){let s=`<path d="M0 40 Q200 85 400 40" fill="none" stroke="${INK}" stroke-width="2.5"/>`;const cols=["#ff5d73","#ffd23f","#4cc9f0","#80ed99","#c77dff"];for(let i=0;i<9;i++){const t=(i+.5)/9,x=400*t,y=40+90*t*(1-t);s+=`<polygon points="${x-12},${y-1} ${x+12},${y+1} ${x},${y+26}" fill="${cols[i%5]}" stroke="${INK}" stroke-width="2"/>`}return s}
+function confetti(){const cols=["#ff5d73","#ffd23f","#4cc9f0","#80ed99","#c77dff"];let s="";for(let i=0;i<30;i++){s+=`<rect x="${(i*61)%400}" y="${60+(i*43)%200}" width="6" height="9" fill="${cols[i%5]}" transform="rotate(${i*37} ${(i*61)%400} ${60+(i*43)%200})"/>`}return s}
+function jar(x,y){return `<g transform="translate(${x},${y})" stroke="${INK}" stroke-width="2.5"><path d="M-12 -30 Q-22 -12 -14 0 L14 0 Q22 -12 12 -30 Z" fill="#c8794a"/><rect x="-8" y="-38" width="16" height="9" fill="#b0643a"/><path d="M-16 -16 L16 -16" stroke="#ffd166" stroke-width="4"/></g>`}
+
+/* ---------- people ---------- */
+function person(x,y,s,o={}){
+  const skin=o.skin||"#f4c7a1",robe=o.robe||"#e76f51",trim=o.trim||"#ffd166",hair=o.hair||"#4a2c1a",scarf=o.scarf||"#f72585";
+  const type=o.type||"man",arm=o.arm||"down",mood=o.mood||"happy";
+  const seg=(x1,y1,x2,y2)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${INK}" stroke-width="13"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${robe}" stroke-width="8"/><circle cx="${x2}" cy="${y2}" r="5.5" fill="${skin}"/>`;
+  const A={down:[[-15,-58,-25,-30],[15,-58,25,-30]],up:[[-15,-58,-25,-30],[15,-58,32,-92]],both:[[-15,-58,-30,-95],[15,-58,30,-95]],out:[[-15,-58,-40,-48],[15,-58,40,-48]],hold:[[-15,-58,-6,-38],[15,-58,6,-38]],pray:[[-15,-58,-6,-60],[15,-58,6,-60]]}[arm];
+  const tf=`translate(${x},${y})`+(o.rot?` rotate(${o.rot})`:"")+` scale(${o.flip?-s:s},${s})`;
+  let g=`<g transform="${tf}" stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">`;
+  g+=`<ellipse cx="-10" cy="3" rx="9" ry="4.5" fill="#8d5a2b"/><ellipse cx="10" cy="3" rx="9" ry="4.5" fill="#8d5a2b"/>`;
+  g+=`<path d="M-25 0 L-15 -64 Q0 -70 15 -64 L25 0 Z" fill="${robe}"/>`;
+  g+=`<path d="M-24 -3 L24 -3" stroke="${trim}" stroke-width="5" fill="none"/><path d="M-18 -42 L18 -42" stroke="${trim}" stroke-width="6" fill="none"/>`;
+  g+=A.map(a=>seg(...a)).join("");
+  if(type==="woman"){
+    g+=`<path d="M-22 -76 Q-25 -105 0 -105 Q25 -105 22 -76 Q25 -56 14 -56 L-14 -56 Q-25 -56 -22 -76 Z" fill="${scarf}"/><ellipse cx="0" cy="-79" rx="15" ry="17" fill="${skin}"/>`;
+  }else{
+    g+=`<circle cx="0" cy="-80" r="19" fill="${skin}"/>`;
+    if(o.beard) g+=`<path d="M-17 -78 Q-14 -56 0 -56 Q14 -56 17 -78 Q10 -68 0 -68 Q-10 -68 -17 -78Z" fill="${hair}"/>`;
+    g+=`<path d="M-19 -83 Q-20 -103 0 -103 Q20 -103 19 -83 Q12 -92 0 -92 Q-12 -92 -19 -83Z" fill="${hair}"/>`;
+  }
+  const ey=-83;
+  if(mood==="sleep"){
+    g+=`<path d="M-10 ${ey} Q-7 ${ey+3} -4 ${ey} M4 ${ey} Q7 ${ey+3} 10 ${ey}" fill="none" stroke-width="2"/>`;
+  }else{
+    g+=`<circle cx="-7" cy="${ey}" r="2.8" fill="${INK}" stroke="none"/><circle cx="7" cy="${ey}" r="2.8" fill="${INK}" stroke="none"/>`;
+  }
+  g+=`<circle cx="-12" cy="-75" r="3.5" fill="#ff8fa3" opacity=".6" stroke="none"/><circle cx="12" cy="-75" r="3.5" fill="#ff8fa3" opacity=".6" stroke="none"/>`;
+  if(mood==="happy"||mood==="sleep") g+=`<path d="M-6 -74 Q0 -67 6 -74" fill="none" stroke-width="2.2"/>`;
+  else if(mood==="sad") g+=`<path d="M-5 -70 Q0 -75 5 -70" fill="none" stroke-width="2.2"/><path d="M-12 -88 L-4 -91 M12 -88 L4 -91" fill="none" stroke-width="2"/><ellipse cx="-9" cy="-76" rx="2" ry="3.5" fill="#6ec1ff" stroke="none"/>`;
+  else if(mood==="open") g+=`<ellipse cx="0" cy="-70" rx="4" ry="5" fill="#7a2b2b" stroke-width="2"/><path d="M-12 -91 Q-8 -94 -4 -91 M4 -91 Q8 -94 12 -91" fill="none" stroke-width="2"/>`;
+  else if(mood==="worried") g+=`<path d="M-5 -70 Q0 -73 5 -70" fill="none" stroke-width="2.2"/><path d="M-12 -90 L-4 -87 M12 -90 L4 -87" fill="none" stroke-width="2"/>`;
+  if(o.crown) g+=`<path d="M-14 -99 L-14 -114 L-7 -106 L0 -117 L7 -106 L14 -114 L14 -99Z" fill="#ffd23f" stroke-width="2.5"/>`;
+  return g+"</g>";
+}
+const C={
+  ruth:{robe:"#4cc9f0",scarf:"#f72585",type:"woman"},
+  naomi:{robe:"#9b5de5",scarf:"#d8c4f0",type:"woman",skin:"#e8b48a"},
+  orpah:{robe:"#f9844a",scarf:"#43aa8b",type:"woman"},
+  boaz:{robe:"#2a9d8f",type:"man",beard:true,hair:"#6b4226",trim:"#ffd23f"},
+  elim:{robe:"#bc6c25",type:"man",beard:true,hair:"#3b2a1a"},
+  mahlon:{robe:"#8ecae6",type:"man"},
+  chilion:{robe:"#ffb703",type:"man",hair:"#2f2f2f"},
+  vill:{robe:"#90be6d",type:"man",beard:true,hair:"#666"},
+  rel:{robe:"#6c757d",type:"man",beard:true,hair:"#222"},
+  wvill:{robe:"#ee6c4d",scarf:"#3d5a80",type:"woman"},
+  jesse:{robe:"#a06cd5",type:"man",beard:true,hair:"#cfcfcf"},
+  david:{robe:"#e63946",type:"man",hair:"#6b3f1d",crown:true}
+};
+const Pp=(k,x,y,s,o={})=>person(x,y,s,{...C[k],...o});
+function baby(x,y,s=1){return `<g transform="translate(${x},${y}) scale(${s})" stroke="${INK}" stroke-width="2.5"><ellipse cx="6" cy="0" rx="22" ry="14" fill="#fff"/><path d="M-4 -12 Q6 4 16 -12" fill="none" stroke="#ff8fa3" stroke-width="5"/><circle cx="-14" cy="-6" r="12" fill="#f4c7a1"/><circle cx="-18" cy="-8" r="1.8" fill="${INK}" stroke="none"/><circle cx="-10" cy="-8" r="1.8" fill="${INK}" stroke="none"/><path d="M-18 -2 Q-14 1 -10 -2" fill="none"/></g>`}
+
+/* ---------- the six pages ---------- */
+const pages=[
+{title:"A Hungry Home",panels:[
+  ()=>sky("#8ecae6","#e0f4ff")+sun(345,58,26)+cloud(70,62,1)+hills("#95d5b2","#74c69d")+ground(230,"#d4a373")+house(55,232,.95)+house(345,232,.9,"#ffd166")+
+      sfx(200,66,"THE STORY",48,"#ffd23f",-3)+sfx(200,120,"OF RUTH",60,"#ff6b6b",-3)+
+      Pp("ruth",140,250,1,{arm:"up"})+Pp("naomi",265,250,1,{arm:"both"})+
+      cap("A true Bible story about loyalty, kindness... and a big surprise!",{bottom:true}),
+  ()=>sky("#d9c7a0","#efe2bf")+`<circle cx="335" cy="62" r="24" fill="#f4d35e" opacity=".75"/>`+ground(225,"#c9a46c")+
+      `<path d="M30 250 l12 8 l-6 10 M150 285 l-10 -10 l8 -8 M330 245 l14 10 l-4 12 M260 280 l12 -6" fill="none" stroke="#8b6b3d" stroke-width="3" stroke-linecap="round"/>`+
+      `<g stroke="#7a5a2e" stroke-width="3" fill="none" stroke-linecap="round"><path d="M365 240 L365 205 M365 222 L352 210 M365 215 L376 205"/><path d="M20 238 L20 210 M20 224 L10 214"/></g>`+
+      Pp("elim",62,262,1.05,{mood:"sad"})+Pp("naomi",145,262,1.05,{mood:"sad"})+Pp("mahlon",235,262,.75,{mood:"sad"})+Pp("chilion",290,262,.7,{mood:"open"})+
+      cap("Long ago, a famine hit Bethlehem. No rain, no food!")+
+      bub(8,62,170,"Our barley won't grow...",145,155)+bub(205,100,185,"I'm sooo hungry!",235,181),
+  ()=>sky("#a8dadc","#f1faee")+sun(58,60,24)+cloud(305,52)+hills("#b7e4c7","#95d5b2")+ground(244,"#e9c46a")+
+      Pp("elim",90,262,1,{arm:"up"})+Pp("naomi",165,262,1)+Pp("mahlon",235,262,.75)+Pp("chilion",290,262,.7)+
+      cap("So the family packed up and walked to the land of Moab.")+
+      bub(8,62,200,"Let's try Moab. They have food!",90,156),
+  ()=>sky("#7d8597","#b8c0cc")+cloud(100,72,1.3,"#9aa5b1")+cloud(300,62,1.2,"#9aa5b1")+rain()+ground(238,"#6b8f71")+
+      Pp("ruth",105,262,1,{mood:"sad",arm:"hold"})+Pp("naomi",200,262,1.05,{mood:"sad"})+Pp("orpah",295,262,1,{mood:"sad",arm:"hold"})+
+      cap("In Moab, Naomi's husband and both sons died. Naomi, Ruth and Orpah were heartbroken.")+
+      bub(120,70,165,"I'm all alone...",200,154)
+]},
+{title:"Going Home",panels:[
+  ()=>sky("#fff3b0","#ffe0e0")+sun(65,78,30)+hills("#b7e4c7","#95d5b2")+ground(240,"#a7c957")+barley(30,250,45)+barley(48,252,40)+barley(360,250,45)+barley(376,252,40)+
+      Pp("naomi",200,262,1.15,{arm:"both"})+
+      cap("Years later, Naomi heard wonderful news...")+
+      bub(60,56,280,"God has given Bethlehem food again! I'm going home!",200,142),
+  ()=>sky("#cdeac0","#f0ffe0")+cloud(320,70,.9)+hills("#b7e4c7","#95d5b2")+ground(244,"#e9c46a")+
+      Pp("naomi",80,262,1,{mood:"open"})+Pp("ruth",175,262,1,{mood:"worried",arm:"hold"})+Pp("orpah",320,262,1,{mood:"sad",arm:"up",flip:true})+
+      cap("Naomi told her daughters-in-law to go back to their families.")+
+      bub(8,62,180,"Go home, girls. You're young!",80,157)+bub(205,100,185,"Goodbye... I'll miss you!",320,155),
+  ()=>sky("#ffd6e0","#fff0f3")+hills("#ffc8dd","#ffafcc")+ground(246,"#f4a6c0")+
+      heart(300,110,1.4)+heart(350,150,1)+heart(60,150,1.1,"#ff8fab")+heart(250,70,.9,"#ff6b9d")+
+      Pp("ruth",160,262,1.1,{arm:"out",mood:"worried"})+Pp("naomi",240,262,1.1,{arm:"out",mood:"open"})+
+      cap("But Ruth held on tight and would NOT let go!")+
+      bub(20,50,215,"I won't leave you, Naomi!",160,146)+sfx(335,215,"HUG!",34,"#fff",8),
+  ()=>sky("#ff9e7a","#ffd6a5")+sun(318,172,42)+`<path d="M0 205 Q90 170 190 205 Q290 175 400 205 L400 300 L0 300Z" fill="#6a4c93" stroke="${INK}" stroke-width="3"/>`+ground(245,"#8a5a44")+
+      Pp("ruth",120,262,1.1,{arm:"up"})+Pp("naomi",230,262,1)+
+      cap("Ruth made a promise that is famous to this day:")+
+      bub(25,46,350,"Where you go, I will go. Your people will be my people, and your God will be my God!",120,146)+sfx(335,128,"LOYAL!",34,"#ff8fab",8)
+]},
+{title:"Gleaning in the Field",panels:[
+  ()=>sky("#bde0fe","#e8f4ff")+sun(350,70,22)+ground(232,"#dda15e")+house(40,232,.85)+house(135,232,.7,"#ffd166")+house(335,232,.85,"#f4a261")+
+      Pp("vill",70,262,1,{arm:"up",mood:"open"})+Pp("naomi",185,262,1)+Pp("ruth",272,262,1)+Pp("wvill",350,262,.95,{mood:"open"})+
+      cap("They reached Bethlehem just as the barley harvest began.")+
+      bub(8,62,140,"Is that... NAOMI?!",70,156)+bub(235,98,150,"She's back!",350,162),
+  ()=>sky("#bde0fe","#e8f4ff")+cloud(70,82,.9)+ground(238,"#dda15e")+house(350,238,.8,"#ffd166")+house(30,238,.75)+
+      Pp("ruth",110,262,1.1,{arm:"up"})+Pp("naomi",290,262,1,{arm:"hold"})+
+      cap("Naomi and Ruth had no food. So Ruth had an idea.")+
+      bub(8,62,205,"I'll pick up leftover grain from the fields!",110,144)+bub(225,104,165,"Go, my daughter.",290,156),
+  ()=>sky("#ffe8a3","#fff6d6")+sun(58,62,26)+ground(205,"#e9c46a")+fieldRow(222,48)+
+      Pp("vill",300,232,.55,{arm:"up"})+Pp("chilion",355,232,.5)+fieldRow(245,50,6)+
+      Pp("ruth",150,288,1.2)+barley(186,262,38)+barley(194,264,34)+barley(178,266,32)+fieldRow(296,46,3)+
+      cap("Poor people were allowed to gather the grain the harvesters dropped.")+sfx(305,150,"snip snip!",30,"#fff",-8),
+  ()=>sky("#bde0fe","#fff3b0")+sun(345,80,24)+fieldRow(210,42)+fieldRow(228,44,6)+ground(238,"#e9c46a")+
+      Pp("ruth",235,236,.55,{mood:"happy"})+barley(255,232,22)+
+      Pp("boaz",100,262,1.05,{arm:"up"})+Pp("vill",305,262,1,{arm:"out"})+
+      cap("It happened to be the field of a kind man named Boaz.")+
+      bub(8,62,190,"Who is that young woman?",100,153)+bub(205,84,185,"That's Ruth, Naomi's daughter-in-law!",305,157)
+]},
+{title:"A Kind Surprise",panels:[
+  ()=>sky("#bde0fe","#fff3b0")+sun(60,70,24)+fieldRow(214,42)+ground(240,"#e9c46a")+jar(345,262)+jar(372,264)+
+      Pp("boaz",110,262,1.05,{arm:"out"})+Pp("ruth",285,262,1,{arm:"pray"})+
+      cap("Boaz was very kind to Ruth.")+
+      bub(8,46,255,"Stay in my field. You're safe here, and please drink from our water jars!",110,153),
+  ()=>sky("#d8f3dc","#fff3b0")+cloud(330,70,.9)+fieldRow(214,40)+ground(240,"#e9c46a")+
+      Pp("ruth",110,262,1.05,{arm:"pray",mood:"open"})+Pp("boaz",290,262,1)+
+      cap("Ruth was amazed that a stranger from Moab was treated so kindly.")+
+      bub(8,62,175,"Why are you so kind to me, a foreigner?",110,155)+bub(200,90,190,"I heard how you cared for Naomi. God bless you!",290,156),
+  ()=>sky("#bde0fe","#fff3b0")+sun(345,80,22)+fieldRow(218,40)+ground(240,"#e9c46a")+
+      barley(205,262,34)+barley(220,264,30)+barley(238,262,32)+barley(262,265,28)+
+      Pp("boaz",80,262,1,{arm:"out"})+Pp("vill",190,262,1,{mood:"happy"})+Pp("chilion",320,262,.95,{arm:"up"})+
+      cap("Boaz had a secret plan...")+
+      bub(8,46,225,"Drop some extra grain on purpose for her!",80,157)+bub(255,100,120,"Yes, boss!",320,158)+sfx(335,76,"psst!",30,"#fff",6),
+  ()=>sky("#ffb88c","#ffe5b4")+sun(330,150,34)+hills("#c9a66b","#b5883c")+ground(244,"#d4a373")+
+      `<g stroke="${INK}" stroke-width="2.5"><ellipse cx="110" cy="150" rx="46" ry="24" fill="#f2c94c"/></g>`+barley(80,132,24)+barley(95,128,28)+barley(112,126,30)+barley(128,128,28)+barley(143,132,24)+
+      Pp("ruth",110,262,1,{arm:"both",mood:"happy"})+Pp("naomi",300,262,1,{arm:"both",mood:"open"})+
+      cap("That evening, Ruth carried home a HUGE load of grain!")+
+      bub(8,62,130,"Boaz's field!",100,118)+bub(165,62,225,"WOW! You got SO much! Where did you work?",300,157)
+]},
+{title:"The Big Plan",panels:[
+  ()=>sky("#ffcba4","#ffe8d6")+sun(345,70,22)+ground(236,"#dda15e")+house(40,236,.8)+house(355,236,.8,"#ffd166")+
+      Pp("ruth",70,262,1,{mood:"worried"})+Pp("naomi",290,262,1,{arm:"up"})+
+      cap("Naomi had a bold plan.")+
+      bub(8,46,120,"I'll do it!",70,157)+bub(140,46,250,"Tonight, go to Boaz at the threshing floor and ask him to be our family protector.",290,157),
+  ()=>sky("#14213d","#274690")+stars()+moon(320,64)+ground(235,"#6d597a")+
+      `<ellipse cx="62" cy="236" rx="48" ry="26" fill="#c9a227" stroke="${INK}" stroke-width="3"/><ellipse cx="358" cy="236" rx="40" ry="22" fill="#c9a227" stroke="${INK}" stroke-width="3"/>`+
+      `<ellipse cx="270" cy="250" rx="95" ry="14" fill="#d9b43a" stroke="${INK}" stroke-width="3"/>`+
+      Pp("boaz",222,240,.9,{rot:90,mood:"sleep"})+sfx(318,200,"Zzz",32,"#fff",-6)+
+      Pp("ruth",100,264,1,{arm:"out",mood:"worried"})+sfx(120,112,"tiptoe...",26,"#fff",-6)+
+      cap("Late that night, Ruth tiptoed to the threshing floor. Boaz was fast asleep."),
+  ()=>sky("#14213d","#274690")+stars()+moon(60,70)+ground(238,"#6d597a")+
+      Pp("boaz",100,262,1,{arm:"up",mood:"open"})+Pp("ruth",300,262,1,{arm:"pray"})+
+      cap("Boaz woke up with a start!")+
+      bub(8,46,125,"Who are you?!",100,157)+bub(150,46,240,"I'm Ruth. Please look after Naomi and me, our family protector!",300,157),
+  ()=>sky("#bde0fe","#e8f4ff")+ground(242,"#c9b79c")+
+      `<rect x="-5" y="62" width="410" height="40" fill="#a9a9a9" stroke="${INK}" stroke-width="3"/><rect x="-5" y="62" width="48" height="190" fill="#b8b8b8" stroke="${INK}" stroke-width="3"/><rect x="357" y="62" width="48" height="190" fill="#b8b8b8" stroke="${INK}" stroke-width="3"/><path d="M-5 82 L405 82 M10 102 L10 120 M26 140 L40 140 M370 130 L390 130 M380 170 L380 190" stroke="${INK}" stroke-width="2" fill="none"/>`+
+      Pp("boaz",115,262,1.05,{arm:"up"})+Pp("rel",290,262,1,{mood:"worried",arm:"out"})+
+      cap("At the town gate, a closer relative said no, so Boaz stepped up!")+
+      bub(8,62,190,"Then I will take care of Naomi and Ruth!",115,155)+bub(215,106,150,"No thanks, I can't!",290,157)+sfx(200,212,"DEAL!",28,"#ffd23f",-6)
+]},
+{title:"Happily Ever After",panels:[
+  ()=>sky("#a2d2ff","#ffe5ec")+bunting()+ground(238,"#b7e4c7")+confetti()+
+      Pp("vill",48,262,.8,{arm:"both"})+Pp("wvill",352,262,.8,{arm:"both"})+
+      Pp("boaz",150,262,1.05,{arm:"up"})+Pp("ruth",250,262,1,{arm:"up"})+
+      sfx(200,132,"HOORAY!",52,"#ff6b6b",-4)+cap("Boaz and Ruth got married!"),
+  ()=>sky("#ffe5d9","#fff1e6")+ground(238,"#ffcad4")+heart(310,92,1.5)+heart(350,130,1)+heart(240,80,.9,"#ff8fab")+heart(60,150,1,"#ff6b9d")+
+      Pp("naomi",170,262,1.1,{arm:"hold"})+baby(170,224,1.1)+Pp("ruth",290,262,1,{arm:"up"})+
+      cap("Soon Ruth and Boaz had a baby boy named Obed!")+
+      bub(8,46,200,"My heart is full again!",170,146),
+  ()=>sky("#caf0f8","#fff7e6")+
+      [52,152,252,352].map(x=>`<circle cx="${x}" cy="178" r="38" fill="#fff" stroke="${INK}" stroke-width="3"/>`).join("")+
+      [[92,175],[192,175],[292,175]].map(([x,y])=>`<path d="M${x} ${y} L${x+14} ${y}" stroke="${INK}" stroke-width="4"/><polygon points="${x+14},${y-6} ${x+22},${y} ${x+14},${y+6}" fill="${INK}"/>`).join("")+
+      Pp("ruth",52,210,.6)+baby(152,190,1.15)+Pp("jesse",252,210,.6)+Pp("david",352,210,.6)+
+      [["Ruth",52],["Obed",152],["Jesse",252],["King David",352]].map(([t,x])=>`<text x="${x}" y="232" text-anchor="middle" font-family="${FONT}" font-weight="700" font-size="14" fill="${INK}">${t}</text>`).join("")+
+      cap("Ruth's baby Obed became the grandpa of King David!")+
+      cap("Many years later, Jesus was born into this same family line.",{bottom:true}),
+  ()=>sky("#caf0f8","#fff1e6")+
+      ["#ff5d73","#ff9f1c","#ffd23f","#80ed99","#4cc9f0","#9b5de5"].map((c,i)=>{const r=150-i*12;return `<path d="M${200-r} 250 A${r} ${r} 0 0 1 ${200+r} 250" fill="none" stroke="${c}" stroke-width="12"/>`}).join("")+
+      cloud(60,170,.8)+cloud(345,175,.8)+ground(250,"#b7e4c7")+
+      Pp("naomi",165,252,.95,{arm:"out"})+Pp("ruth",235,252,.95,{arm:"out"})+
+      sfx(200,80,"THE END",56,"#ffd23f",-3)+
+      cap("Be loyal. Be kind. God can turn sad stories into happy ones!",{bottom:true})
+]}
+];
+
+/* ---------- viewer ---------- */
+const grid=document.getElementById("grid"),dots=document.getElementById("dots"),
+      prev=document.getElementById("prev"),next=document.getElementById("next"),
+      ptitle=document.getElementById("ptitle"),pnum=document.getElementById("pnum");
+let cur=0;
+pages.forEach((p,i)=>{
+  const b=document.createElement("button");
+  b.type="button";b.className="dot";b.setAttribute("aria-label","Go to page "+(i+1));
+  b.addEventListener("click",()=>go(i));dots.appendChild(b);
+});
+function render(dir){
+  gid=0;
+  grid.innerHTML=pages[cur].panels.map((f,i)=>`<div class="panel"><svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Comic panel ${i+1}">${f()}</svg></div>`).join("");
+  ptitle.textContent=pages[cur].title;
+  pnum.textContent="Page "+(cur+1)+" of "+pages.length;
+  prev.disabled=cur===0;
+  next.textContent=cur===pages.length-1?"Read again":"Next page";
+  [...dots.children].forEach((d,i)=>d.setAttribute("aria-current",i===cur?"true":"false"));
+  const pg=document.getElementById("page");
+  pg.classList.remove("slide-next","slide-prev");
+  void pg.offsetWidth;
+  if(dir)pg.classList.add(dir>0?"slide-next":"slide-prev");
+}
+function go(i){
+  if(i<0||i>=pages.length||i===cur)return;
+  const d=i>cur?1:-1;cur=i;render(d);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+prev.addEventListener("click",()=>go(cur-1));
+next.addEventListener("click",()=>cur===pages.length-1?go(0):go(cur+1));
+document.addEventListener("keydown",e=>{if(e.key==="ArrowRight")go(cur+1);if(e.key==="ArrowLeft")go(cur-1)});
+let sx=null;
+document.addEventListener("touchstart",e=>{sx=e.touches[0].clientX},{passive:true});
+document.addEventListener("touchend",e=>{if(sx===null)return;const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>70)go(cur+(dx<0?1:-1));sx=null},{passive:true});
+render(0);
+</script>
+</body>
+</html>
